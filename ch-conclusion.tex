@@ -1,0 +1,81 @@
+%-------------------------------------------------------------------------------
+\chapter{Conclusion}
+\label{ch.conclusion}
+%-------------------------------------------------------------------------------
+A short summary of the work presented in the thesis is given in this chapter. This
+work includes development of walking control scheme, its tuning and testing, and 
+discussion of associated issues.
+
+Several software components were developed in order to test the control scheme on a
+robot:
+\begin{itemize}
+    \item the sparse active set and logarithmic barrier solvers for \ac{MPCWMG}
+        (\cref{ch.QP,ch.naomodule}); 
+    \item the inverse kinematics library (\cref{ch.naomodule});
+    \item the footstep pattern generator (\cref{ch.naomodule});
+    \item the middleware (\cref{ch.naomodule}), which integrates other components 
+        and interacts with the Nao robot.
+\end{itemize}
+
+In order to obtain an admissible gait, a number of experiments were conducted using
+the walking module (\cref{ch.results}). The experiments allowed to select an appropriate 
+version of inverse kinematics, find good trajectories for the swing foot, and determine
+parameters of the \ac{MPCWMG} as well as parameters of the solvers. 
+
+The performance of the active set solver based on the sparse formulation compared 
+to the dense formulation was presented in \cite{dimitrov2011sparse}. Though, the 
+sparse formulation may improve performance, its implementation and extension (for 
+example, to perform footstep repositioning \cite{dimitrov2011walking}) requires 
+more effort.
+
+The sparse active set and logarithmic barrier solvers were compared on a robot and 
+in a simulation under disturbances (\cref{ch.results}). The results demonstrated, 
+that the logarithmic barrier method is sufficiently fast for the real-time operation 
+on a robot, and may be preferable in some situations.
+
+Some heuristics were also tested:
+\begin{itemize} 
+    \item Approximation of the \ac{DS} with a sequence of rectangles 
+        (\cref{sec.ds_constraints}) works reasonably well, however, the narrower 
+        rectangular constraints may lead to a higher number of active constraints at 
+        the optimal point. 
+    \item Variation of the duration of the sampling periods in the preview window 
+        (\cref{sec.timevarsys,sec.parameters}) gives more freedom for tuning, 
+        but distribution of the \ac{DS} and \ac{SS} between different sampling 
+        periods is problematic. 
+    \item Another heuristic is employed to account for the computational delay of 
+        the control loop (\cref{sec.mpc_delay}).
+\end{itemize}
+
+The rest of the chapter is devoted to discussion of the possible future work.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Discussion of Future Work}
+The possible extensions of the work presented in the thesis can be divided into
+two groups. The first group is focused on the control scheme, while the second
+one on its implementation.
+
+The control scheme can be potentially improved in several ways. It is interesting
+to investigate the effect of introduction of stabilizing constraints to the \ac{MPCWMG}
+as described in \cref{sec.mpc_stability}. The joint limits can be explicitly accounted
+for in the \ac{IK} problem (see \cref{sec.ik_alg}). However, the \ac{IK} problem with 
+the inequality constraints would need a \ac{QP} solver. The \ac{IK} module
+can be rewritten in order to take the position of torso as the base in the same way as
+it is made in \cite{NaoWalk}. The precision of the \ac{IK} may be improved by exclusion 
+of the support foot/feet from computation of the position of the \ac{CoM}. Note that the 
+sparse \ac{MPCWMG} formulation allows easy change of the height of \ac{CoM} during 
+walk. Exploitation of this feature may lead to a more natural gait. It is also possible 
+to implement and test on a robot repositioning of footsteps under disturbances, which 
+is described in \cite{dimitrov2011walking}.
+
+The second group of extensions include various heuristics and fine adaption of the
+walking module to the Nao platform. The available pressure sensors can be used to 
+improve error feedback. The module can be modified to account for the sensor delay,
+which is quite significant ($10$ millisecond). Inclination of the sole of the swing 
+foot may improve walk on uneven terrain.
+
+%TODO    \item \ac{ZMP} multibody

@@ -1,0 +1,49 @@
+graph ""
+{
+    node [shape="point", margin=0, height="0.1", fontname="Times"]
+    Torso [pos = "0,0.2!", label = "Upper Body", shape="ellipse", style="filled"]
+    HipYawPitch [label = "LHipYawPitch\nRHipYawPitch", pos = "0,-0.5!"]
+    LHipRoll [pos = "-1.3,-1!"]
+    LHipPitch [pos = "-1.3,-1.5!"]
+    LKneePitch [pos = "-1.3,-2!"]
+    LAnklePitch [pos = "-1.3,-2.5!"]
+    LAnkleRoll [pos = "-1.3,-3!"]
+
+    RHipRoll [pos = "1.3,-1!"]
+    RHipPitch [pos = "1.3,-1.5!"]
+    RKneePitch [pos = "1.3,-2!"]
+    RAnklePitch [pos = "1.3,-2.5!"]
+    RAnkleRoll [pos = "1.3,-3!"]
+    
+    LHipYawPitchL [color="white", shape="box", type="plainText", pos = "-1.3,-0.5!", label = "1. Left Hip Yaw Pitch"]
+    RHipYawPitchL [color="white", shape="box", type="plainText", pos = "1.3,-0.5!", label = "7. Right Hip Yaw Pitch"]
+
+    LHipRollL [color="white", shape="box", type="plainText", pos = "-2.2,-1!", label="2. Left Hip Roll"]
+    LHipPitchL [color="white", shape="box", type="plainText", pos = "-2.2,-1.5!", label="3. Left Hip Pitch"]
+    LKneePitchL [color="white", shape="box", type="plainText", pos = "-2.2,-2!", label="4. Left Knee Pitch"]
+    LAnklePitchL [color="white", shape="box", type="plainText", pos = "-2.2,-2.5!", label="5. Left Ankle Pitch"]
+    LAnkleRollL [color="white", shape="box", type="plainText", pos = "-2.2,-3!", label="6. Left Ankle Roll"]
+
+    RHipRollL [color="white", shape="box", type="plainText", pos = "2.2,-1!", label="8. Right Hip Roll"]
+    RHipPitchL [color="white", shape="box", type="plainText", pos = "2.2,-1.5!", label="9. Right Hip Pitch"]
+    RKneePitchL [color="white", shape="box", type="plainText", pos = "2.2,-2!", label="10. Right Knee Pitch"]
+    RAnklePitchL [color="white", shape="box", type="plainText", pos = "2.2,-2.5!", label="11. Right Ankle Pitch"]
+    RAnkleRollL [color="white", shape="box", type="plainText", pos = "2.2,-3!", label="12. Right Ankle Roll"]
+    
+
+    Torso -- HipYawPitch
+
+    HipYawPitch -- LHipRoll
+
+    HipYawPitch -- RHipRoll
+
+    LHipRoll -- LHipPitch  
+    LHipPitch -- LKneePitch 
+    LKneePitch -- LAnklePitch
+    LAnklePitch -- LAnkleRoll 
+
+    RHipRoll -- RHipPitch  
+    RHipPitch -- RKneePitch 
+    RKneePitch -- RAnklePitch
+    RAnklePitch -- RAnkleRoll 
+}

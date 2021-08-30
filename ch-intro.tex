@@ -1,0 +1,93 @@
+%-------------------------------------------------------------------------------
+\chapter{Introduction}
+\label{ch.introduction}
+%-------------------------------------------------------------------------------
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Motivation}
+Creation of artificial humans has been a prominent idea in many cultures across the
+world \cite{KempHumanoids}. However, even replication of the simplest functions of human
+brain and body is difficult, if possible, with the current development of technologies.
+Humanoid robotics tries to develop robots that are capable of working in the 
+environments adapted for humans, side by side with them or instead of them.
+It is no wonder, that complexity and diversity of these problems are appealing for 
+many researchers. This thesis is focused only on one aspect of development of humanoid 
+robots -- on their locomotion.
+
+Obviously, humanoid robots have to use their legs for locomotion. Modern research in 
+this field begins in the $70$'s with the projects of I. Kato in Japan at Waseda University 
+and M. Vukobratovi\'c at Mihalo Pupin Institute, Belgrade. The first group worked on 
+anthropomorphic robots, while the second one -- on active exoskeletons for rehabilitation.
+In spite of the progress made since then, many problems still do not have practical 
+solutions. One of the most important restricting factors is complexity and intrinsic
+nonlinearity of models of humanoid robots. It makes the control of such robots challenging
+in real-time on the available computing hardware. Though explicit control is not always
+necessary (for example, for passive walkers, which are briefly described in \cref{ch.background}),
+it usually gives more flexibility. Hence, it is often necessary to employ approximate models, 
+as well as highly optimized software to realize motions of humanoids. The goal of the
+thesis is to design, implement and test on a humanoid platform an embedded optimization 
+based control scheme for walking.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Contribution}
+Apart from the work of many researchers in the field of legged locomotion this
+thesis is a successor to the project of Antonio Paolillo \cite{AntonioThesis}. 
+The main contribution of this thesis is development of an optimized solver for the 
+quadratic problem (refer to \cref{ch.QP}), which is used for walking motion 
+generation. The solver exploits the structure of the sparse formulation of the 
+quadratic problem in order to achieve higher performance. The design of this 
+solver and its performance are discussed in
+
+\begin{itemize}
+    \item D.~Dimitrov, A.~Sherikov, and P.B. Wieber.
+        \newblock A sparse model predictive control formulation for walking motion
+          generation.
+        \newblock In {\em Intelligent Robots and Systems (IROS), 2011 IEEE/RSJ
+          International Conference on}, pages 2292--2299. IEEE, 2011.
+\end{itemize}
+
+Furthermore, the software module for control of a Nao robot (see \cref{sec.nao})
+developed in \cite{AntonioThesis} was rewritten and extended. The new version 
+implements closed loop control with error feedback and uses the position of the 
+center of mass for control decisions instead of position of the torso (refer to 
+\cref{ch.naomodule} for more information).
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Outline}
+The thesis consists of seven chapters including this introductory chapter. 
+\cref{ch.background} introduces terminology, describes basic concepts and reviews 
+related works. The formulation of model predictive control problem for walking 
+pattern generation and some general notes on the model predictive control are 
+given in \cref{ch.MPC}. The next \cref{ch.QP} discusses implementation of 
+optimized solvers for the forenamed model predictive control problem. The design 
+of software walking module for the Nao robot and the results of the experiments 
+on the robot and in a simulation are presented in \cref{ch.naomodule} and 
+\cref{ch.results}, respectively. The results are summarized in \cref{ch.conclusion},
+which also discusses possible future work. \cref{app.Schur} contains sample
+derivations of the Schur complement, which is used to solve the model predictive
+control problem.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Notation}
+Names of programs and software libraries, names of constants, variables and 
+functions that are used in programs are typed in monospace font, for example, \verb|Eigen|.
+
+Matrices are denoted by bold capital letters, vectors -- by bold letters in lower
+case, scalars -- by letters in lower case, for example, $\mbm{C}, \mbm{x}, y$.
+
+Quadratic forms in mathematical expressions are denoted as
+$$
+\norm{\mbm{x}}^2_{\mbm{Q}} \triangleq \mbm{x}^T \mbm{Q} \mbm{x}.
+$$

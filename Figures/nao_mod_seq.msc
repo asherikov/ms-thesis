@@ -1,0 +1,14 @@
+msc {
+    dcm [label="DCM thread"], cb [label="DCM callback"], ct [label="Control thread"];
+    dcm =>> cb [label = "Execute"];
+    cb  =>  cb [label = "NOOP"];
+    dcm =>> cb [label = "Execute"];
+    cb  ->  ct [label = "Activate"];
+    ct  =>  ct [label = "Feedback error"];
+    ct  =>  ct [label = "Solve MPC"];
+    ct  =>  ct [label = "Solve IK (1)"];
+    ct  =>  ct [label = "Send joint angles (1)"];
+    ct  =>  ct [label = "Solve IK (2)"];
+    ct  =>  ct [label = "Send joint angles (2)"];
+    ---        [ label = "Repeat until walk is finished"];
+}

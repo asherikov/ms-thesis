@@ -1,0 +1,29 @@
+digraph arch {
+    compound=true
+    node [shape=box, style=filled, fontname="Times"];
+
+    subgraph cluster0 {
+        subgraph cluster1 {
+            node [fillcolor=white, style=filled, fontname="Times"]
+            thread [label="Control thread"];
+            igm [label="Inverse and\n forward\n kinematics\n library"];
+            solver [label="SMPC\n solver\n library"];
+            wmg [label="Footstep\n pattern\n generator"];
+
+            thread -> igm;
+            thread -> solver;
+            thread -> wmg;
+
+            label="Walking module";
+            style=filled;
+            labeljust=l;
+        }
+
+        label="NaoQI";
+        fillcolor=white;
+        labeljust=l;
+    }
+
+    control [label="Remote control tool\n (oru_walk_control.py)"];
+    control -> thread [lhead=cluster1];
+}

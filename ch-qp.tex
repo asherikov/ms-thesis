@@ -1,0 +1,992 @@
+%-------------------------------------------------------------------------------
+\chapter{Solving the Quadratic Problem}
+\label{ch.QP}
+%-------------------------------------------------------------------------------
+%TODO backtracking search
+In \cref{ch.MPC} it was pointed out that \ac{MPCWMG} requires solution of a \ac{QP}
+on each iteration. The theory and algorithms for this class of optimization problems
+are well developed \cite{NocedalNumOpt, BoydCVX}. 
+
+We implemented {\bf primal active set} and {\bf primal interior point} methods for 
+the solution of \ac{QP}. Comparison of these two methods with respect to solution 
+of \ac{MPCWMG} is given in \cref{ch.results}. One of these methods can be preferable
+depending on the \ac{QP}. One iteration of the interior point method is more expensive, 
+but it has polynomial complexity, while the active set method has exponential complexity 
+\cite{RaoIPMPC}. Consequently, the active set method can be faster for the problems
+with relatively small number of inequality constraints \cite{BartlettASvsIP}. The 
+primal methods are preferred to the dual methods, since each iteration of the former 
+produce a sub-optimal solution that can be used instead of the solution. Note that 
+primal strategies require feasible initial point, which can be easily generated for 
+\ac{MPCWMG} as described in \cref{sec.init_guess}.
+
+The formulations that are used for implementation of active set and logarithmic
+barrier methods presented in this chapter have certain differences. These 
+differences do not alter the quadratic problem~\eqref{eq.opt_final}, but make 
+implementation more convenient or improve performance.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Fast Solution of MPC Problems}
+It was demonstrated in \cite{Nishiwaki}, that a short sampling period is desirable
+for control of a walking robot. However, strict time constraints are imposed on
+the solution of \ac{MPCWMG} in this case. Hence it is necessary to utilize some
+of the techniques that were developed in order to improve performance of the 
+\ac{MPC} solvers with short sampling periods. In this section only the general 
+techniques are discussed, while more specific optimizations and tuning are described 
+later in this chapter and \cref{ch.results}.
+
+The \ac{MPC} problems are often reformulated in order to reduce the number of 
+decision variables, since it is possible to express the state variables through 
+the control inputs and eliminate the equality constraints. This process is sometimes
+referred to as {\bf condensing} \cite{FerreauASWarm, BockMultShooting}. Though the 
+number of decision variables is smaller in this case, the problem (its Hessian and 
+constraints) is less structured. Furthermore, in many cases condensing is performed
+offline, since it is computationally expensive. This imposes unnecessary limitations,
+for example, the Hessian is computed for the fixed height of \ac{CoM}. Alternatively, 
+it is possible to solve the problem in the same form as given in \cref{eq.opt_final} 
+and exploit the structure of the problem. A solver, which is aware of the structure 
+of the problem, can be faster, since the number of floating point operations per one 
+sampling interval is reduced \cite{FastMPC, dimitrov2011sparse, RaoIPMPC}. The 
+approach, which eliminates the equality constraints, in general yields a dense 
+Hessian matrix, while the other one preserves block-diagonal structure of the 
+Hessian. We discriminate these two approaches by calling them {\bf dense} and 
+{\bf sparse}, respectively. Some authors use terms {\bf sequential} and 
+{\bf simultaneous} for this purpose \cite{DiehlNMPC}. In \cite{dimitrov2011sparse} 
+we showed how sparse formulation can be applied to \ac{MPCWMG}.
+
+{\bf Warm-start} techniques can also leverage the performance of the \ac{MPC} solvers.
+These techniques accelerate the computation of the solution on iteration $k+1$ using 
+the data obtained on the $k$-th iteration. Warm-start techniques are not adopted in
+the implementation of the solvers.
+
+In some cases it is impossible to find the solution of \ac{QP} in the available
+time, but a sub-optimal solution is admissible. Such sub-optimal solution can be
+obtained, when a primal quadratic programming method (either active set or logarithmic
+barrier method) is interrupted at some intermediate iteration. This strategy was used 
+in the experiments described in \cref{ch.results}.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Quadratic Problem in a Matrix Form}
+In the derivations presented in this chapter it is more convenient to work with 
+the \ac{MPCWMG}~\eqref{eq.opt_final}, when \ac{QP} is written in a matrix form. 
+
+Let us define the state vector as
+$$
+\mbm{x} = \begin{bmatrix} \tilde{\mbm{v}}_c \\ \mbm{v}_u \end{bmatrix},
+$$
+where
+$$
+\quad
+\tilde{\mbm{v}}_c = \begin{bmatrix} \tilde{\mbm{c}}_1 \\ \vdots \\ \tilde{\mbm{c}}_N \end{bmatrix} , \quad
+\mbm{v}_u = \begin{bmatrix} \dddot{\mbm{c}}_1 \\ \vdots \\ \dddot{\mbm{c}}_N \end{bmatrix} .
+$$
+
+The objective function in a matrix form is
+$$
+f\left(\tilde{\mbm{v}}_c, \mbm{v}_u\right) =
+\begin{bmatrix} \tilde{\mbm{v}}_c \\ \mbm{v}_u \end{bmatrix}^T
+\begin{bmatrix} 
+    \tilde{\mbm{H}}_c   & \mbm{0} \\ 
+    \mbm{0}             & \mbm{H}_u \\
+\end{bmatrix}
+\begin{bmatrix} \tilde{\mbm{v}}_c \\ \mbm{v}_u \end{bmatrix}
++
+\begin{bmatrix} \mbm{g}_c \\ \mbm{0} \end{bmatrix}^T
+\begin{bmatrix} \tilde{\mbm{v}}_c \\ \mbm{v}_u \end{bmatrix},
+$$
+where
+$$
+\tilde{\mbm{H}}_c =
+  \begin{bmatrix}
+    \tilde{\mbm{Q}} & \dots  & \mbm{0} \\ 
+    \vdots  & \ddots & \vdots  \\ 
+    \mbm{0} & \dots  & \tilde{\mbm{Q}} \\ 
+  \end{bmatrix}, \quad
+%
+\mbm{H}_u = 
+  \begin{bmatrix}
+    \mbm{P} & \dots  & \mbm{0} \\ 
+    \vdots  & \ddots & \vdots  \\ 
+    \mbm{0} & \dots  & \mbm{P} \\ 
+  \end{bmatrix}, \quad
+%
+\mbm{g} = 
+\begin{bmatrix} \mbm{q}_1 \\ \vdots \\ \mbm{q}_N \end{bmatrix} .
+$$
+
+The equality constraints are formed based on \cref{eq.system_sub1} and can be expressed as
+\begin{equation}\label{eq.constr_vect}
+\tilde{\mbm{E}}_c\tilde{\mbm{v}}_c + \tilde{\mbm{E}}_u\mbm{v}_u = \tilde{\mbm{e}},
+\end{equation}
+where
+$$
+  \tilde{\mbm{E}}_c =
+    \begin{bmatrix} 
+      -\mbm{I}           &  \mbm{0} &  \mbm{0} & \dots  & \mbm{0}               & \mbm{0}  \\
+       \tilde{\mbm{A}}_1 & -\mbm{I} &  \mbm{0} & \dots  & \mbm{0}               & \mbm{0}  \\
+       \vdots            &  \vdots  &  \vdots  & \ddots & \vdots                & \vdots   \\
+       \mbm{0}           &  \mbm{0} &  \mbm{0} & \dots  & \tilde{\mbm{A}}_{N-1} & -\mbm{I} \\
+    \end{bmatrix}, \quad
+  \tilde{\mbm{E}}_u =
+    \begin{bmatrix} 
+      \tilde{\mbm{B}}_0 & \dots  & \mbm{0} \\
+      \vdots     & \ddots & \vdots  \\
+      \mbm{0}    & \dots  & \tilde{\mbm{B}}_{N-1} \\
+    \end{bmatrix},
+$$
+and 
+$$
+\tilde{\mbm{e}} = 
+\begin{bmatrix}
+    -(\tilde{\mbm{A}}_0 \tilde{\mbm{c}}_0)^T & \mbm{0} & \dots & \mbm{0}
+\end{bmatrix}^T.
+$$
+
+Only the vector of states $\tilde{\mbm{v}}_c$ participates in the inequality constraints
+$$
+\begin{bmatrix} 
+   \mbm{D}\mbm{R}^T_1\mbm{C}_p & \dots  & \mbm{0}                     \\
+   \vdots                      & \ddots & \vdots                      \\
+   \mbm{0}                     & \dots  & \mbm{D}\mbm{R}^T_N\mbm{C}_p \\
+\end{bmatrix}
+\tilde{\mbm{v}}_c \leq
+\begin{bmatrix} 
+    \tilde{\mbm{d}}_1\\
+    \vdots \\
+    \tilde{\mbm{d}}_N\\
+\end{bmatrix},
+$$
+where
+$$
+\tilde{\mbm{d}}_k = \mbm{d}_k + \mbm{D}\mbm{R}^T_k\mbm{r}_k.
+$$
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Active Set Method}\label{sec.as}
+The active set method iteratively tries to guess the inequality constraints that 
+are active at the optimal point. The inequality constraint is called active, if
+it holds as an equality. The high-level logic of the implemented active set method 
+is shown in Algorithm~\ref{alg.activeset}.
+
+\begin{algorithm}[ht]
+    \label{alg.activeset}
+    \SetKwInOut{Input}{Input}
+    \SetKwInOut{Output}{Output}
+    \SetNlSty{textbf}{(}{)}
+    \DontPrintSemicolon
+
+    \caption{The active set method}
+
+    \Input{$\mbm{x}$ -- initial feasible point\\
+           $\mbm{w_i}\mbm{x} \leq \mbm{b}_i$ -- inequality constraints $i = 1, \dots, m$}
+    \Output{$\mbm{x}$ -- solution of the \ac{QP}}
+
+    \BlankLine
+
+    $\mbm{W}^a \gets \emptyset$ \tcc*{Indicies of active constraints}
+    $\mbm{W}^{na} \gets (1, \dots, m)$ \tcc*{Indicies of inactive constraints}
+    \While{true}
+    {
+        solve the \acs{KKT} system to obtain $\Delta \mbm{x}$ and $\mbm{\lambda}$ \;
+        $\alpha \gets 1$ \tcc*{The step length $\alpha \in [0;1]$}
+        $i^a \gets 0$ \tcc*{Activated constraint}
+        \ForEach(\tcc*[f]{Find a blocking constraint}){$i \in \mbm{W}^{na}$}
+        {
+            $\alpha_i \gets$ solution of $\mbm{w}_i (\mbm{x} + \alpha_i \Delta \mbm{x}) = b_i$\;
+            \If {$\alpha_i < \alpha$}
+            {
+                $i^a \gets i$ \;
+                $\alpha \gets \alpha_i$ \;
+            }
+        }
+        $\mbm{x} \gets \mbm{x} + \alpha \Delta \mbm{x}$ \;
+        \eIf(\tcc*[f]{No constraints to add}){$i^a = 0$}
+        {
+            \If{$\forall i \in \mbm{W}^a: \mbm{\lambda}_i \ge 0$}
+            {
+                break \tcc*{No constraints to remove}
+            }
+            $i^d \gets \argmin{i \in \mbm{W}^a} \mbm{\lambda}_i$ \tcc*{Deactivated constraint}
+            $\mbm{W}^a \gets \mbm{W}^a \backslash i^d$ \;
+            $\mbm{W}^{na} \gets \mbm{W}^{na} \cup i^d$ \;
+        }
+        {
+            $\mbm{W}^a \gets \mbm{W}^a \cup i^a$ \;
+        }
+    }
+\end{algorithm}
+
+On each iteration of this algorithm the \ac{KKT} system is solved to obtain a 
+feasible descent direction $\Delta \mbm{x}$ and a vector of Lagrange multipliers 
+$\mbm{\lambda}$. Then one blocking constraint with the smallest respective step 
+length $\alpha$ is identified. The blocking constraint is added to the active set, 
+and a starting point for the next iteration is computed as $\mbm{x} = \mbm{x} + 
+\alpha \Delta \mbm{x}$. If there are no blocking constraints, the active constraint 
+with the smallest negative Lagrange multiplier is deactivated, and the system is 
+resolved. The algorithm stops, if there are no constraints to add or remove.
+For a detailed description of this method refer to \cite{NocedalNumOpt}. 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Variable Substitution}
+A variable substitution that abolishes the linear term in the objective
+function simplifies the implementation of the solver.
+
+Let us replace the \ac{ZMP} position in the state variable of the system by the 
+distance to the respective reference point to obtain a new state variable
+\begin{equation}\label{eq.substitution2}
+\bar{\mbm{c}}_{k} = \tilde{\mbm{c}}_{k} - \mbm{C}_p^T \mbm{z}^{ref}_k.
+\end{equation}
+
+The system \cref{eq.system_sub1} transforms to
+\begin{equation}\label{eq.system_sub2}
+\bar{\mbm{c}}_{k+1} + \mbm{C}_p^T \mbm{z}^{ref}_{k+1}
+= \tilde{\mbm{A}}_k \left(\bar{\mbm{c}}_{k} + \mbm{C}_p^T \mbm{z}^{ref}_k\right)
++ \tilde{\mbm{B}}_k \dddot{\mbm{c}}_{k}.
+\end{equation}
+
+The new state vector is
+$\bar{\mbm{x}} = \begin{bmatrix} \bar{\mbm{v}}_c & \mbm{v}_u \end{bmatrix}^T,$
+where
+$
+\bar{\mbm{v}}_c = \begin{bmatrix} \bar{\mbm{c}}^T_1 & \dots & \bar{\mbm{c}}^T_N \end{bmatrix}^T.
+$
+
+When the new state vector is plugged into the objective function the linear term 
+disappears
+$$
+f\left(\bar{\mbm{v}}_c, \mbm{v}_u\right) =
+\begin{bmatrix} \bar{\mbm{v}}_c \\ \mbm{v}_u \end{bmatrix}^T
+\begin{bmatrix} 
+    \tilde{\mbm{H}}_c   & \mbm{0} \\ 
+    \mbm{0}             & \mbm{H}_u \\
+\end{bmatrix}
+\begin{bmatrix} \bar{\mbm{v}}_c \\ \mbm{v}_u \end{bmatrix}.
+$$
+
+The matrices participating in the equality constraints~\eqref{eq.constr_vect} are 
+not altered. Only the vector $\tilde{\mbm{e}}$ must be replaced by
+$$
+\bar{\mbm{e}} = 
+    \begin{bmatrix}
+        -\tilde{\mbm{A}}_0 \left(\bar{\mbm{c}}_0  + \mbm{C}_p^T \mbm{z}^{ref}_0\right) + \mbm{C}_p^T \mbm{z}^{ref}_1 \\
+        -\tilde{\mbm{A}}_1 \mbm{C}_p^T \mbm{z}^{ref}_1 + \mbm{C}_p^T \mbm{z}^{ref}_{2} \\
+        \dots \\
+        -\tilde{\mbm{A}}_{N-1} \mbm{C}_p^T \mbm{z}^{ref}_{N-1} + \mbm{C}_p^T \mbm{z}^{ref}_{N} \\
+    \end{bmatrix}.
+$$
+
+The inequality constraints are changed to 
+$$
+\mbm{D}\mbm{R}^T_k\bar{\mbm{c}}_k \leq \mbm{d}_{k} + \mbm{D}\mbm{R}^T_k(\mbm{r}_k - \mbm{z}^{ref}_k).
+$$
+The inequality constraints prevent coordinates of \ac{ZMP} from leaving the rectangular 
+support polygons. We can interpret them as a point $\mbm{R}^T_k \mbm{C}_p \bar{\mbm{c}}_k$ 
+having lower and upper bounds. Since lower and upper bounds cannot be activated
+simultaneously, checking for activated constraints can be simplified.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Solution of the KKT system}
+The \ac{KKT} system 
+\begin{equation}\label{eq.kkt}
+    \begin{bmatrix} 
+        2\mbm{H} & \mbm{E}^T \\ 
+        \mbm{E} & \mbm{0} 
+    \end{bmatrix}
+    \begin{bmatrix} 
+        \mbm{x}_{init} + \Delta\mbm{x}\\ 
+        \mbm{\nu}
+    \end{bmatrix}
+   =
+    \begin{bmatrix} 
+        \mbm{0} \\ 
+        \mbm{\tilde{e}} 
+    \end{bmatrix}
+\end{equation}
+is solved using block elimination complement, which is convenient for solving a sparse \ac{QP} 
+\cite{GillSchurQP}. Since the Hessian matrix is diagonal, it can be easily inverted 
+assuming that all gains are strictly greater than 0.
+
+Then the Lagrange multipliers and the descent direction can be found from
+\begin{align*}
+\frac{1}{2} \mbm{E} \mbm{H}^{-1} \mbm{E}^T \mbm{\nu} &= 
+    \mbm{S} \mbm{\nu} = - \mbm{E} \mbm{x}_{init} = \mbm{s},\\
+\Delta\mbm{x} &= - \mbm{x}_{init} - \frac{1}{2} \mbm{H}^{-1} \mbm{E}^T \mbm{\nu},
+\end{align*}
+where $\mbm{S}$ is the negated Schur complement, which is also referred to simply as
+Schur complement in the thesis.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Schur Complement}\label{sec.schur}
+The negated Schur complement for the \ac{KKT} system~\eqref{eq.kkt} is 
+\begin{align*}
+\mbm{S} 
+&= \frac{1}{2}\mbm{E}\mbm{H}^{-1}\mbm{E}^T 
+= \frac{1}{2}
+    \begin{bmatrix}\tilde{\mbm{E}}_c  \tilde{\mbm{E}}_u\end{bmatrix}
+    \begin{bmatrix}
+            \tilde{\mbm{H}}_c & \mbm{0} \\ 
+            \mbm{0} & \mbm{H}_u
+    \end{bmatrix}^{-1}
+    \begin{bmatrix}
+            \tilde{\mbm{E}}_c^T \\ 
+            \tilde{\mbm{E}}_u^T 
+    \end{bmatrix} \\
+&= \frac{1}{2}\tilde{\mbm{E}}_c\tilde{\mbm{H}}_c^{-1}\tilde{\mbm{E}}_c^T 
++ \frac{1}{2}\tilde{\mbm{E}}_u\mbm{H}_u^{-1}\tilde{\mbm{E}}_u^T.
+\end{align*}
+
+In \cref{app.Schur} it is demonstrated that $\mbm{S}$ has a block-diagonal
+structure with the blocks defined as
+\begin{equation}\label{eq.schur_blocks}
+\begin{split}
+  2\mbm{S}_{11} &= \tilde{\mbm{Q}}^{-1} + \tilde{\mbm{B}}_0\mbm{P}^{-1}\tilde{\mbm{B}}^T_0,\\
+  2\mbm{S}_{kk} &= \mbm{A}_{k-1}\tilde{\mbm{Q}}^{-1}\mbm{A}^T_{k-1} + \tilde{\mbm{Q}}^{-1} + 
+                    \tilde{\mbm{B}}_{k-1}\mbm{P}^{-1}\tilde{\mbm{B}}^T_{k-1},\\
+  2\mbm{S}_{k,k+1} &= \mbm{S}_{k+1,k}^T = -\tilde{\mbm{Q}}^{-1}\mbm{A}^T_{k}.
+\end{split}
+\end{equation}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Cholesky Factorization of the Schur Complement}\label{sec.chol}
+In order to determine the Lagrange multipliers from \cref{eq.kkt} we have to solve
+a linear system. The matrix $\mbm{S}$ is positive definite, since the inverted Hessian 
+matrix is positive definite by construction and the rows of the matrix of constraints
+are linearly independent \cite{golub1996matrix}. The rows of the matrix of constraints
+remain linearly independent after addition of active constraints due to the structure
+of equality and inequality constraints. Hence, it is possible to solve the linear
+system using Cholesky factorization $\mbm{S} = \mbm{L}\mbm{L}^T$, where $\mbm{L}$ is
+lower triangular 
+%
+$$
+\mbm{L} = 
+  \begin{bmatrix} 
+    \mbm{L}_{11}  & \mbm{0}  & \mbm{0}     & \dots  & \mbm{0} & \mbm{0}        \\
+    \mbm{L}_{21}  & \mbm{L}_{22}  & \mbm{0} & \dots  & \mbm{0} & \mbm{0}        \\
+    \mbm{0}      & \mbm{L}_{32}  & \mbm{L}_{33} & \dots  & \mbm{0} & \mbm{0}        \\
+    \vdots       & \vdots       & \vdots      & \ddots & \vdots  & \vdots         \\
+    \mbm{0}      & \mbm{0}      & \mbm{0}     & \dots  & \mbm{L}_{N-1,N-1} & \mbm{0} \\
+    \mbm{0}      & \mbm{0}      & \mbm{0}     & \dots  &  \mbm{L}_{N,N-1} & \mbm{L}_{NN} 
+  \end{bmatrix}.
+$$
+
+Directly from observation of equations~\eqref{eq.schur_blocks} and the structure of $\mbm{L}$
+%
+\begin{align*}
+\mbm{S}_{11} &= \mbm{L}_{11}\mbm{L}_{11}^T, \nonumber \\
+\mbm{S}_{12} &= \mbm{S}_{21}^T = \mbm{L}_{11}\mbm{L}_{21}^T \\
+\mbm{S}_{22} &= \mbm{L}_{21}\mbm{L}_{21}^T + \mbm{L}_{22}\mbm{L}_{22}^T, 
+\end{align*}
+and so on. $\mbm{L}_{21}^T$ is computed by forward substitution, forming $\mbm{L}_{22}$ 
+requires the computation of the Cholesky factors of $\mbm{S}_{22} - \mbm{L}_{21}\mbm{L}_{21}^T$.
+
+Note that the state and control matrices in the system (as introduced in 
+\cref{sec.timevarsys}) are decoupled and this property is preserved in the
+Schur complement and its Cholesky factor.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Computation of the Step Direction}
+Let $\mbm{\nu}_e$ and $\mbm{\lambda}$ be the Lagrange multipliers associated with the equality
+and inequality constraints, respectively, $\mbm{A}_W$ be the matrix of normals of active 
+constraints, then
+$$
+\Delta\mbm{x} = -\mbm{x}_{init} - \frac{1}{2} \mbm{H}^{-1} \left( \mbm{E}^{T}\mbm{\nu_e} + \mbm{A}_W^T\mbm{\lambda} \right).
+$$
+Multiplication by the inverted Hessian is trivial since it is diagonal.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Resolving the Problem after Changes of the Active Set}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Update of the Cholesky Factor after Addition of a Constraint}\label{sec.add_ic}
+The updated Schur complement, which is denoted as $\mbm{S}^+$, is
+$$
+\mbm{S}^+ = 
+\frac{1}{2}
+\begin{bmatrix}
+    \mbm{C}\\
+    \mbm{a}^T_i\\
+\end{bmatrix}
+\mbm{H}^{-1}
+\begin{bmatrix} \mbm{C}^T & \mbm{a}_i \end{bmatrix} = 
+\frac{1}{2}
+\begin{bmatrix}
+    \mbm{C} \mbm{H}^{-1} \mbm{C}^T      & \mbm{C} \mbm{H}^{-1} \mbm{a}_i\\
+    \mbm{a}^T_i \mbm{H}^{-1} \mbm{C}^T    & \mbm{a}^T_i \mbm{H}^{-1} \mbm{a}_i\\
+\end{bmatrix},
+$$
+where
+$$
+\mbm{C} = \begin{bmatrix} \mbm{E} \\ \mbm{A}_{W}\end{bmatrix},
+$$
+and the new new row of $\mbm{S}^+$ is
+$$
+\mbm{s_a}^T = 
+\frac{1}{2}
+\begin{bmatrix}
+    \mbm{a}^T_i \mbm{H}^{-1} \mbm{E}^T & \mbm{a}^T_i \mbm{H}^{-1} \mbm{A}_W^T & \mbm{a}^T_i \mbm{H}^{-1} \mbm{a}_i
+\end{bmatrix}.
+$$
+Where 
+$$
+\frac{1}{2}\mbm{a}^T_i \mbm{H}^{-1} \mbm{a}_i = \frac{1}{\alpha_g},
+$$
+$\mbm{a}^T_i \mbm{H}^{-1} \mbm{E}^T$ has up to $4$ nonzero elements, 
+$\mbm{a}^T_i \mbm{H}^{-1} \mbm{A}_W^T$ is a vector of zeros, since the activated 
+inequality constraints are always orthogonal (the constrained regions are rectangles). 
+The total number of non-zero elements in the new row of the Schur complement is $5$ 
+or $3$ (for the last state in the preview window).
+
+Consider the updated Cholesky factor
+$$
+\mbm{L}^+ =  \begin{bmatrix} \mbm{L} \\ \mbm{l}^T \end{bmatrix} ,
+$$
+where $\mbm{l}^T$ is the row to be added. Note that
+$$
+\mbm{S}^+ = \mbm{L}^+(\mbm{L}^+)^T = 
+\begin{bmatrix}
+    \mbm{L}\mbm{L}^T      & \mbm{L}\mbm{l}\\
+    \mbm{l}^T\mbm{L}^T    & \mbm{l}^T\mbm{l}
+\end{bmatrix}
+ =
+\begin{bmatrix}
+    \mbm{C} \mbm{H}^{-1} \mbm{C}^T      & \mbm{C} \mbm{H}^{-1} \mbm{a}_i\\
+    \mbm{a}^T_i \mbm{H}^{-1} \mbm{C}^T    & \mbm{a}^T_i \mbm{H}^{-1} \mbm{a}_i\\
+\end{bmatrix}.
+$$
+Consequently, 
+$$
+\begin{bmatrix}
+    \mbm{L}\\
+    \mbm{l}^T
+\end{bmatrix}
+ \mbm{l} 
+= 
+\begin{bmatrix}
+    \mbm{L}     & \mbm{0}\\
+    \mbm{l}^T_L   & \ell
+\end{bmatrix}
+\begin{bmatrix}
+    \mbm{l}_L\\
+    \ell
+\end{bmatrix}
+= \mbm{s}_a, \quad
+\ell = \sqrt{\mbm{a}^T_i \mbm{H}^{-1} \mbm{a}_i - \mbm{l}^T_L\mbm{l}_L},
+$$
+thus the computation of the new row of $\mbm{L}^+$ amounts to a forward substitution
+and a dot product of two vectors. Furthermore, due to the structure of the inequality
+constraints, the first $N(i-1)$ elements of $\mbm{s}_a$ corresponding to constraint
+for the $i$-th sampling period are zeros and full forward substitution is not
+necessary.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Update of the Cholesky Factor after Removal of a Constraint}\label{sec.del_ic}
+Imagine that the $i$-th inequality constraint was selected for removal, then the 
+corresponding line and column must be removed from the matrix $\mbm{S}$. This can be
+achieved by moving these lines to the end and to the right of $\mbm{S}$ using 
+a row-interchanging permutation matrix $\mbm{U}$:
+$$
+\mbm{U} \mbm{S} \mbm{U}^T = 
+\mbm{U} \mbm{L} \mbm{L}^T \mbm{U}^T = 
+(\mbm{U} \mbm{L}) (\mbm{U} \mbm{L})^T.
+$$
+The matrix $\mbm{U}\mbm{L}$ is not lower triangular
+$$
+\mbm{L} = 
+\begin{bmatrix}
+    \mbm{L}_1 & \mbm{0}     & \mbm{0}\\
+    \mbm{b}^T & p           & \mbm{0}\\
+    \mbm{L}_2 & \mbm{d}     & \mbm{L}_3\\
+\end{bmatrix}, \quad
+\mbm{U}\mbm{L} = 
+\begin{bmatrix}
+    \mbm{L}_1 & \mbm{0}     & \mbm{0}\\
+    \mbm{L}_2 & \mbm{d}     & \mbm{L}_3\\
+    \mbm{b}^T & p           & \mbm{0}\\
+\end{bmatrix},
+$$
+where $\begin{bmatrix} \mbm{b}^T & p & \mbm{0} \end{bmatrix}$ is a row, 
+that must be removed. The square matrix $\mbm{L}_1$ of $(6N + i-1)\times(6N + i-1)$ 
+size and matrix $\mbm{L}_2$ of $(m_a - i)\times(6N + i-1)$ size do not depend on 
+the removed row. The matrix $\begin{bmatrix} \mbm{d} & \mbm{L}_3 \end{bmatrix}$ 
+of $(m_a - i)\times(m_a - i + 1)$ size can be transformed to the triangular form using 
+a sequence of $m_a-1$ Givens rotation matrices (refer to \cite{golub1996matrix} for 
+background). Each rotation matrix in this sequence alters two columns of $\mbm{L}_3$ 
+starting from the left. The rotation matrices eliminate each other, which can be 
+demonstrated with one rotation matrix $\mbm{G}$
+\begin{equation*}
+\begin{split}
+\left(\mbm{U} \mbm{L} \begin{bmatrix} \mbm{I} & \mbm{0}\\ \mbm{0} & \mbm{G} \end{bmatrix}  \right) 
+\left(\mbm{U} \mbm{L} \begin{bmatrix} \mbm{I} & \mbm{0}\\ \mbm{0} & \mbm{G} \end{bmatrix}  \right)^T
+&= 
+\mbm{U} \mbm{L} 
+\begin{bmatrix} \mbm{I} & \mbm{0}\\ \mbm{0} & \mbm{G} \end{bmatrix}  
+\begin{bmatrix} \mbm{I} & \mbm{0}\\ \mbm{0} & \mbm{G} \end{bmatrix} ^T
+\mbm{L}^T \mbm{U}^T \\ 
+&= 
+\mbm{U} \mbm{L} \mbm{L}^T \mbm{U}^T.
+\end{split}
+\end{equation*}
+
+The Cholesky decomposition is unique: given a positive-definite matrix $\mbm{S}$,
+there is only one lower triangular matrix $\mbm{L}$ with strictly positive diagonal 
+entries such that $\mbm{S} = \mbm{L}\mbm{L}^T$. The procedure described above may
+produce negative diagonal entries. The sign of the diagonal element can be changed 
+using multiplication by an identity matrix having $-1$ on the respective position.
+The signs of all elements of the column, where negative element is located, are 
+changed. 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Computation of the Lagrange Multipliers after Addition of a Constraint}
+Consider the addition of the $i$-th inequality constraint with the normal $\mbm{a}_i^T$ 
+to the active set. Let vector $\mbm{s} = -\mbm{C}\mbm{x}$. Then, after the addition of 
+the new constraint
+%
+\begin{align*}
+\mbm{s}^{+} 
+= 
+    -\begin{bmatrix} 
+        \mbm{C} \\ 
+        \mbm{a}_i^T
+    \end{bmatrix}
+    \left(\mbm{x}+\alpha\Delta\mbm{x}\right) 
+=
+    -\begin{bmatrix} 
+        \mbm{C}\mbm{x}\\ 
+        \mbm{a}_i^T(\mbm{x}+\alpha\Delta\mbm{x})
+    \end{bmatrix}
+  = \begin{bmatrix} \mbm{s} \\ s_n \end{bmatrix}.
+\end{align*}
+%
+Note that $\alpha\mbm{C}\Delta\mbm{x} = \mbm{0}$, because $\Delta\mbm{x}$ is in the null space of
+the normals of the constraints stored in $\mbm{C}$.
+
+After $\mbm{L}$ was changed due to addition of inequality constraint, the solution of the linear 
+system does not require full forward substitution. Let $\mbm{z} = \mbm{L}^T\mbm{\nu}$ then 
+$\mbm{L}\mbm{z} = \mbm{s}$, then after the constraint is added
+$$
+  \underbrace{\begin{bmatrix} \mbm{L} & \mbm{0} \\ \mbm{l}^T_p & \ell \end{bmatrix}}_{\mbm{L}^{+}}
+  \underbrace{\begin{bmatrix} \mbm{z} \\ z_n \end{bmatrix}}_{\mbm{z}^{+}} = 
+  \underbrace{\begin{bmatrix} \mbm{s} \\ s_n \end{bmatrix}}_{\mbm{s}^{+}},
+$$
+%
+where $\mbm{l}^T = \begin{bmatrix} \mbm{l}^T_p & \ell \end{bmatrix}$ is a row 
+appended to $\mbm{L}$ to obtain $\mbm{L}^{+}$. Since
+$$
+\mbm{l}^T_p\mbm{z} + bz_n = s_n,
+$$
+we can compute (note that $\ell\neq0$)
+$$
+z_n = \frac{s_n - \mbm{l}^T\mbm{z}}{\ell}.
+$$
+Hence, forming $\mbm{z}^{+}$ amounts to performing one dot product. 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Computation of the Lagrange Multipliers after Removal of a Constraint}
+Consider the system before removal of a constraint
+$$
+\mbm{L}\mbm{z} = 
+\begin{bmatrix}
+    \mbm{L}_1 & \mbm{0}     & \mbm{0}\\
+    \mbm{b}^T & p           & \mbm{0}\\
+    \mbm{L}_2 & \mbm{d}     & \mbm{L}_3\\
+\end{bmatrix}
+\begin{bmatrix}
+    \mbm{z}_c\\
+    z_p\\
+    \mbm{z}_o\\
+\end{bmatrix}
+ = 
+\mbm{s} =
+\begin{bmatrix}
+    \mbm{s}_1\\
+    s_p\\
+    \mbm{s}_2\\
+\end{bmatrix},
+$$
+where $\mbm{z}_c, \mbm{s}_1, \mbm{s}_2$ remain constant; $z_p$ and $s_p$ must be removed;
+$\mbm{z}_o$ must be updated. From
+$$
+\mbm{L}_2\mbm{z}_c + \mbm{d}z_p + \mbm{L}_3 \mbm{z}_o = \mbm{s}_2
+$$
+we can obtain vector $\mbm{s}_2 - \mbm{L}_2 \mbm{z}_c$, which is not affected by the removal
+of a constraint.
+
+The updated system is 
+$$
+\begin{bmatrix}
+    \mbm{L}_1 & \mbm{0}\\
+    \mbm{L}_2 & \mbm{L}_{3,u}\\
+\end{bmatrix}
+\begin{bmatrix}
+    \mbm{z}_c\\
+    \mbm{z}_u\\
+\end{bmatrix}
+ = 
+\begin{bmatrix}
+    \mbm{s}_1\\
+    \mbm{s}_2\\
+\end{bmatrix}.
+$$
+The updated part of vector $\mbm{z}$ can be found using forward substitution from
+$$
+\mbm{L}_{3,u} \mbm{z}_u = \mbm{s}_2 - \mbm{L}_2 \mbm{z}_c.
+$$
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Logarithmic Barrier Method}\label{sec.ip}
+The logarithmic barrier method is a relatively simple interior-point algorithm. 
+On each iteration of this method a logarithmic barrier is added to the objective 
+function, then a feasible descent direction is obtained from the solution of the 
+\ac{KKT} system, which is formed using Taylor approximation of the new objective 
+function. The implementation of solver, which was developed during the work on 
+this thesis, follows Algorithm~\ref{alg.logbar}. A comprehensive description of 
+the logarithmic barrier method is given in \cite{BoydCVX}.
+%\cite{BoydCVX} Chapter 11 page 575
+
+\begin{algorithm}[ht]
+    \label{alg.logbar}
+    \SetKwInOut{Input}{Input}
+    \SetKwInOut{Output}{Output}
+    \SetNlSty{textbf}{(}{)}
+    \DontPrintSemicolon
+
+    \caption{The logarithmic barrier method}
+
+    \Input{$\mbm{x}$ -- initial feasible point\\
+           $t > 0$ -- multiplier of logarithmic barrier term\\
+           $\mu > 1$ -- increase rate of $t$\\
+           $\epsilon$ -- tolerance\\
+           $m$ -- number of inequality constraints}
+    \Output{$\mbm{x}$ -- solution of the \ac{QP}}
+
+    \BlankLine
+
+    \While(\tcc*[f]{External loop}){true}
+    {
+        \While(\tcc*[f]{Internal loop}){true}
+        {
+            form \acs{KKT} system using Taylor approximation of $\phi$ \; 
+            $\Delta \mbm{x} \gets$ solution of \acs{KKT} system \;
+            \If{$\Delta\mbm{x}^T \nabla^2\phi \Delta\mbm{x} < \epsilon$}
+            {
+                break \tcc*{The decrement is too small}
+            }
+            $\alpha \gets$ step length found using backtracking search\;
+            \If {$\alpha < \epsilon$}
+            {
+                break \tcc*{The step length is too small}
+            }
+            $\mbm{x} \gets \mbm{x} + \alpha \Delta \mbm{x}$
+        }
+        \BlankLine
+        $t \gets t\mu$\;
+        \If {$\frac{m}{t} < \epsilon$}
+        {
+            break \tcc*{The duality gap is too small}
+        }
+    }
+\end{algorithm}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Review of the Logarithmic Barrier Method}
+Consider the following \ac{QP}
+\begin{equation*}
+\begin{split}
+    \minimize{\mbm{x}}  & f(\mbm{x}) = \mbm{x}^T \mbm{H} \mbm{x}  + \mbm{g}^T\mbm{x}\\
+    \subjectto          & \mbm{E}\mbm{x} = \mbm{e} \\
+                        & \mbm{W}\mbm{x} - \mbm{d} \le \mbm{0}.
+\end{split}
+\end{equation*}
+
+
+After addition of the logarithmic barrier term the objective function changes to
+$$
+    \phi(\mbm{x}) = \mbm{x}^T \mbm{H} \mbm{x} + \mbm{g}^T \mbm{x} 
+        -\frac{1}{t} \sum^m_{i=1} \ln {(-\mbm{W}_i \mbm{x} + \mbm{d}_i)}.
+$$
+
+The Taylor approximation of $\phi$ near some feasible point $\mbm{x}$ is
+$$
+    \phi(\mbm{x} + \Delta\mbm{x}) = \phi(\mbm{x}) + \nabla\phi({\mbm{x}})\Delta\mbm{x}
+        + \frac{1}{2} \Delta\mbm{x} \nabla^2 \phi(\mbm{x}) \Delta\mbm{x},
+$$
+where
+\begin{equation*}
+\begin{split}
+    \nabla\phi(\mbm{x}) &= 2\mbm{H}\mbm{x} + \mbm{g} + \frac{1}{t} \sum^m_{i=1} 
+        \left( 
+            \frac{1}{-\mbm{W}_i\mbm{x} + \mbm{d}_i} \mbm{W}_i^T 
+        \right),\\
+    \nabla^2\phi(\mbm{x}) &= 2\mbm{H} + \frac{1}{t} \sum^m_{i=1} 
+        \left( 
+            \frac{1}{(-\mbm{W}_i\mbm{x} + \mbm{d}_i)^2} \mbm{W}_i^T \mbm{W}_i
+        \right).
+\end{split}
+\end{equation*}
+
+Then \ac{KKT} system can be derived from the Taylor approximation of $\phi$ 
+$$
+\begin{bmatrix}
+    \nabla^2\phi(\mbm{x})   &   \mbm{E}^T\\
+    \mbm{E}                 &   \mbm{0}\\
+\end{bmatrix}
+\begin{bmatrix}
+    \Delta\mbm{x}\\
+    \mbm{\omega}\\
+\end{bmatrix}
+=
+\begin{bmatrix}
+    -\nabla\phi(\mbm{x})\\
+    \mbm{0}\\
+\end{bmatrix},
+$$
+which can be solved using block substitution complement as
+\begin{equation*}
+\begin{split}
+    \Delta\mbm{x} = (\nabla^2\phi(\mbm{x}))^{-1}
+        (-\nabla\phi(\mbm{x}) - \mbm{E}^T \mbm{\omega}),\\
+    \mbm{E} (\nabla^2\phi(\mbm{x}))^{-1} \mbm{E}^T \mbm{\omega} =
+        - \mbm{E} (\nabla^2\phi(\mbm{x}))^{-1} \nabla\phi(\mbm{x}).
+\end{split}
+\end{equation*}
+Again, $\mbm{\omega}$ can be found using Cholesky decomposition. Since $\phi$ is
+approximated near $\mbm{x}$, the system must be iteratively resolved until 
+$\Delta\mbm{x}$ is small enough.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Variable Substitution}\label{sec.ip_incon}
+It is more convenient to implement interior point method for a \ac{QP}, which
+has only simple bounds. It is possible to obtain \ac{MPCWMG} with simple bounds 
+by performing a variable substitution described in this section.
+
+Each state is constrained by four inequalities
+$$
+\mbm{D}\mbm{R}^T_k \mbm{C}_p \tilde{\mbm{c}}_k \leq \tilde{\mbm{d}}_{k}.
+$$
+
+Let the new state variable be $\mbm{p}_k = \bar{\mbm{R}}^T_k \tilde{\mbm{c}}_k$,
+where
+$$
+\bar{\mbm{R}}_k 
+=
+  \begin{bmatrix} 
+    \cos\varphi_k   & 0     & 0 &  -\sin\varphi_k & 0 & 0\\
+    0               & 1     & 0 &   0             & 0 & 0\\
+    0               & 0     & 1 &   0             & 0 & 0\\
+    \sin\varphi_k   & 0     & 0 &   \cos\varphi_k & 0 & 0\\
+    0               & 0     & 0 &   0             & 1 & 0\\
+    0               & 0     & 0 &   0             & 0 & 1
+  \end{bmatrix}.
+$$
+The four elements of $\tilde{\mbm{d}}_{k}$ are
+$$
+\tilde{\mbm{d}}_{k} =
+  \begin{bmatrix} 
+    u_k^x & u_k^y & -l_k^x & -l_k^y
+  \end{bmatrix}^T,
+$$
+where $u_k^x, u_k^y$ and $l_k^x, l_k^y$ are upper and lower bounds, respectively.
+
+Then the inequality constraints for state $\mbm{p}_k$ are changed to
+$$
+  \begin{bmatrix} 
+     1 & 0 & 0 &  0 & 0 & 0\\
+     0 & 0 & 0 &  1 & 0 & 0\\
+    -1 & 0 & 0 &  0 & 0 & 0\\
+     0 & 0 & 0 & -1 & 0 & 0
+  \end{bmatrix}
+ \mbm{p}_k 
+\leq
+  \begin{bmatrix} 
+    u_k^x\\
+    u_k^y\\
+    -l_k^x\\
+    -l_k^y
+  \end{bmatrix}
+\quad
+\mbox{or}
+\quad
+  \begin{bmatrix} 
+     p_k^x\\
+     p_k^y\\
+    -p_k^x\\
+    -p_k^y
+  \end{bmatrix}
+\leq
+  \begin{bmatrix} 
+    u_k^x\\
+    u_k^y\\
+    -l_k^x\\
+    -l_k^y
+  \end{bmatrix}.
+$$
+
+The system equation must be changed accordingly 
+$$
+\bar{\mbm{R}}_{k+1}\mbm{p}_{k+1}
+= \tilde{\mbm{A}}_k \bar{\mbm{R}}_k\mbm{p}_{k} + \tilde{\mbm{B}}_k \dddot{\mbm{c}}_{k}.
+$$
+Consequently, the equality constraints are also changed
+$$
+\bar{\mbm{E}}_c\bar{\mbm{v}}_c + \tilde{\mbm{E}}_u\mbm{v}_u = \bar{\mbm{e}},
+$$
+where
+$$
+\bar{\mbm{e}} = 
+\begin{bmatrix}
+    -\mbm{A}_0\bar{\mbm{R}}_0\mbm{p}_0 \\
+    \mbm{0}
+\end{bmatrix},
+$$
+and
+$$
+\bar{\mbm{E}}_c =
+  \begin{bmatrix} 
+    -\bar{\mbm{R}}_1    &  \mbm{0}            &  \mbm{0}         & \dots  & \mbm{0}               & \mbm{0}  \\
+     \mbm{A}_1\bar{\mbm{R}}_1 & -\bar{\mbm{R}}_2    &  \mbm{0}         & \dots  & \mbm{0}               & \mbm{0}  \\
+     \mbm{0}            &  \mbm{A}_2\bar{\mbm{R}}_2 & -\bar{\mbm{R}}_3 & \dots  & \mbm{0}               & \mbm{0}  \\
+     \vdots             &  \vdots             &  \vdots          & \ddots & \vdots                & \vdots   \\
+     \mbm{0}            &  \mbm{0}            &  \mbm{0}         & \dots  & \mbm{A}_{N-1}\bar{\mbm{R}}_{N-1} & -\bar{\mbm{R}}_N \\
+  \end{bmatrix}.
+$$
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Objective Function of a QP with Simple Bounds}
+Consider the objective function of \ac{MPCWMG} with simple bounds after addition 
+of the logarithmic barrier
+\begin{align*}
+\phi(\mbm{x}) 
+= 
+    \mbm{x}^T \mbm{H} \mbm{x} + \mbm{g}^T\mbm{x}
+    -\frac{1}{t} \sum^{N}_{i=1} 
+    &(
+        \ln (-p_k^x + u_k^x)
+        +
+        \ln (-p_k^y + u_k^y)\\
+    &    +
+        \ln (p_k^x - l_k^x)
+        +
+        \ln (p_k^y - l_k^y)
+    ).
+\end{align*}
+
+The derivative $\nabla\phi(\mbm{x})$ can be computed as
+$$
+\nabla\phi(\mbm{x}) = 2\mbm{H}\mbm{x} + \mbm{g} + \frac{1}{t} \mbm{o},
+$$
+where
+$$
+\mbm{o} = 
+\begin{bmatrix}
+    \mbm{o}^T_1 & \dots & \mbm{o}^T_N & \mbm{0} \\
+\end{bmatrix}^T
+$$
+and
+$$
+\mbm{o}_k = 
+\begin{bmatrix}
+    \frac{1}{-p_k^x + u_k^x} - \frac{1}{p_k^x - l_k^x}\\
+    0\\
+    0\\
+    \frac{1}{-p_k^y + u_k^y} - \frac{1}{p_k^y - l_k^y}\\
+    0\\
+    0
+\end{bmatrix}.
+$$
+
+The second derivative of $\phi(\mbm{x})$ is
+$$
+\nabla^2\phi(\mbm{x}) = 2\mbm{H} + \frac{1}{t} \mbm{O},
+$$
+where
+$$
+\mbm{O} = 
+\begin{bmatrix}
+    \mbm{O}_1   & \dots     & \mbm{0}   & \mbm{0}   \\
+    \vdots      & \ddots    & \vdots    & \vdots    \\
+    \mbm{0}     & \dots     & \mbm{O}_N &           \\
+    \mbm{0}     & \dots     &           & \mbm{0}   \\
+\end{bmatrix}
+$$
+and
+$$
+\mbm{O}_k = 
+\begin{bmatrix}
+    \frac{1}{(-p_k^x + u_k^x)^2} + \frac{1}{(p_k^x - l_k^x)^2} &0 &0 &0 &0 & 0\\
+    0                                                          &0 &0 &0 &0 & 0\\
+    0                                                          &0 &0 &0 &0 & 0\\
+    0&0 &0 & \frac{1}{(-p_k^y + u_k^y)^2} + \frac{1}{(p_k^y - l_k^y)^2} &0 & 0\\
+    0                                                          &0 &0 &0 &0 & 0\\
+    0                                                          &0 &0 &0 &0 & 0\\
+\end{bmatrix}.
+$$
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Schur Complement}
+The Cholesky factorization of the negated Schur complement 
+$\bar{\mbm{E}} (\nabla^2\phi(\mbm{x}))^{-1} \bar{\mbm{E}}^T$
+must be performed on each iteration of the logarithmic barrier method, since the
+function $\phi(\mbm{x})$ is approximated near the starting point of each iteration.
+
+The negated Schur complement is defined as
+\begin{equation*}
+\begin{split}
+\bar{\mbm{E}} (\nabla^2\phi(\mbm{x}))^{-1} \bar{\mbm{E}}^T 
+&=
+\bar{\mbm{E}}_c (\nabla^2\phi(\mbm{x}))^{-1} \bar{\mbm{E}}^T_c 
++
+\tilde{\mbm{E}}_u (\nabla^2\phi(\mbm{x}))^{-1} \tilde{\mbm{E}}^T_u\\
+&= 
+\bar{\mbm{E}}_c (\nabla^2\phi(\mbm{x}))^{-1} \bar{\mbm{E}}^T
++
+\tilde{\mbm{E}}_u \mbm{H}^{-1}_u \tilde{\mbm{E}}^T_u.
+\end{split}
+\end{equation*}
+
+$$
+\bar{\mbm{E}}_c (\nabla^2\phi(\mbm{x}))^{-1} \bar{\mbm{E}}^T
+= 
+  \begin{bmatrix} 
+    \mbm{M}_{11}    &  -\mbm{M}_{11}\mbm{A}^T    &  \mbm{0}  \\
+    -\mbm{A}\mbm{M}_{11} & \mbm{A}\mbm{M}_{11}\mbm{A}^T + \mbm{M}_{22}   &  -\mbm{M}_{22}\mbm{A}^T \\
+    \mbm{0}    &  -\mbm{A}\mbm{M}_{22} & \mbm{A}\mbm{M}_{22}\mbm{A}^T + \mbm{M}_{33} \\
+  \end{bmatrix},
+$$
+where $\mbm{M}_{kk} = \bar{\mbm{R}}_k\bar{\mbm{Q}}^{-1}_k\bar{\mbm{R}}_k^T$ and
+$\bar{\mbm{Q}}_k = \tilde{\mbm{Q}} + \mbm{O}^k$.
+
+The Cholesky factorization is performed in the same way as described in \cref{sec.chol}. 
+Note that due to addition of $\mbm{O}^k$, the Cholesky factor is not so well structured 
+as in the case of the active set method.

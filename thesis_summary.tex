@@ -1,0 +1,97 @@
+\documentclass[a4paper,12pt]{article}
+
+%\usepackage[koi8-r]{inputenc}
+%\usepackage[english,russian]{babel}
+\usepackage{graphicx}
+%\usepackage[ruled,lined,nofillcomment]{algorithm2e}
+\usepackage{longtable}
+\usepackage{listings}
+%\usepackage{latexsym}
+\usepackage{textcomp}
+\usepackage{color}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{afterpage}
+\usepackage{placeins}
+\usepackage{amsmath}
+\usepackage{amssymb} %\mathbb{R}
+
+
+\makeatletter
+
+\renewcommand{\labelenumi}{\theenumi)}
+
+\pagestyle{plain}
+%\raggedbottom
+
+\makeatletter
+\makeatother
+
+\renewcommand{\labelenumi}{\theenumi)}
+%\renewcommand{\lstlistingname}{Листинг}
+
+%\textheight=25.5cm
+%\topskip=1cm
+%\textwidth=15.5cm
+%\voffset=-20mm
+%\hoffset=-10mm
+\oddsidemargin=0cm
+\textwidth=15.5cm
+\topmargin=-0.54cm
+\textheight=25.5cm
+\headheight=0cm
+\headsep=0cm
+
+\sloppy
+
+\renewcommand{\baselinestretch}{1.1}
+
+
+
+\begin{document}
+\begin{center}
+{\Large THESIS SUMMARY}\\
+\vspace{0.2cm}
+{\large Alexander Sherikov}\\
+\vspace{0.2cm}
+{\large Model predictive control of a walking bipedal robot using online optimization}\\
+\end{center}
+
+The inherent complexity of humanoid robots makes their control a difficult task even
+on the modern hardware. In order to address this issue approximate models and
+high performance algorithms are employed. The thesis is focused on the model
+predictive control of a walking bipedal robot, which is approximated by an inverted
+pendulum, using online optimization. The goal of the thesis is to design, implement 
+and test on a humanoid platform an embedded optimization based control scheme for walking.
+A special emphasis is made on the solvers that exploit the structure of quadratic 
+optimization problems in the context of model predictive control. 
+
+The thesis consists of seven chapters. Chapter~1 is devoted to a short introduction. 
+Chapter~2 introduces terminology, describes basic concepts and reviews related works. 
+The formulation of model predictive control problem for walking pattern generation 
+and some general notes on the model predictive control are given in Chapter~3. Chapter~4 
+discusses implementation of optimized solvers for the forenamed model predictive control 
+problem. The design of software walking module for the Nao platform and the results of 
+experiments on the robot and in a simulation are presented in Chapters~5 and~6, respectively. 
+The results are summarized in Chapter~7, which also discusses possible future work.
+
+The main contribution (Chapter~4) of this thesis is development of an optimized solver of 
+the quadratic problem, which is used for walking motion generation. Two methods of
+solution of this problem were implemented and compared in a simulation and on a humanoid 
+robot: primal active set and primal logarithmic barrier methods. Both exploit the structure 
+of the problem in order to achieve higher performance. 
+
+A software walking module was developed (Chapter~5) in order to perform tests on a robot. 
+Apart from the solver, the key components of the module are: an inverse kinematics library; 
+a simple footstep pattern generator; and middleware, which integrates other components and 
+interacts with a Nao robot. Experiments on a robot (Chapter~6) allowed to select an 
+appropriate version of inverse kinematics, find good trajectories for the swing foot, and 
+tune parameters of the solver. 
+
+A number of heuristics were employed in the walking module and solver. Double support 
+constraints are approximated to simplify implementation (Section 3.2). Variation of sampling 
+time allows to increase time span of the preview window without increasing the size of 
+respective quadratic problem (Section 3.3). A special heuristic was developed in order to 
+account for the computational delay of the control loop (Section 5.4).
+
+\end{document}

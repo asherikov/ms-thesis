@@ -1,0 +1,74 @@
+%-------------------------------------------------------------------------------
+\chapter{Derivation of Schur Complement}
+\label{app.Schur}
+%-------------------------------------------------------------------------------
+Here an example derivation of the Schur complement of the \ac{KKT} 
+system~\eqref{eq.kkt} is presented.
+
+The Schur complement in \cref{sec.schur} was derived as
+\begin{align*}
+\mbm{S} = \frac{1}{2}\tilde{\mbm{E}}_c\tilde{\mbm{H}}_c^{-1}\tilde{\mbm{E}}_c^T 
++ \frac{1}{2}\tilde{\mbm{E}}_u\mbm{H}_u^{-1}\tilde{\mbm{E}}_u^T.
+\end{align*}
+
+When $N = 3$ the two terms in the summation are
+\begin{align*}
+\tilde{\mbm{E}}_c\tilde{\mbm{H}}_c^{-1}\tilde{\mbm{E}}_c^T 
+&= 
+    \begin{bmatrix} 
+      -\mbm{I}    &  \mbm{0}    &  \mbm{0}         \\
+       \tilde{\mbm{A}}_1 & -\mbm{I}    &  \mbm{0}  \\
+       \mbm{0}    &  \tilde{\mbm{A}}_2 & -\mbm{I}  \\
+    \end{bmatrix}
+    \begin{bmatrix} 
+      \tilde{\mbm{Q}} & \mbm{0}    & \mbm{0}    \\
+      \mbm{0}    & \tilde{\mbm{Q}} & \mbm{0}    \\
+      \mbm{0}    & \mbm{0}    & \tilde{\mbm{Q}} \\
+    \end{bmatrix}^{-1}
+    \begin{bmatrix} 
+      -\mbm{I} &  \tilde{\mbm{A}}^T_1 &  \mbm{0}             \\
+       \mbm{0} & -\mbm{I}             &  \tilde{\mbm{A}}^T_2 \\
+       \mbm{0} &  \mbm{0}             & -\mbm{I}             \\
+    \end{bmatrix}\\
+&= 
+  \begin{bmatrix} 
+    \tilde{\mbm{Q}}^{-1}    &  -\tilde{\mbm{Q}}^{-1}\tilde{\mbm{A}}^T_1    &  \mbm{0}\\
+    -\tilde{\mbm{A}}_1\tilde{\mbm{Q}}^{-1} & \tilde{\mbm{A}}_1\tilde{\mbm{Q}}^{-1}\tilde{\mbm{A}}^T_1 + \tilde{\mbm{Q}}^{-1}   &  -\tilde{\mbm{Q}}^{-1}\tilde{\mbm{A}}^T_2 \\
+    \mbm{0}    &  -\tilde{\mbm{A}}_2\tilde{\mbm{Q}}^{-1} & \tilde{\mbm{A}}_2\tilde{\mbm{Q}}^{-1}\tilde{\mbm{A}}^T_2 + \tilde{\mbm{Q}}^{-1}\\
+  \end{bmatrix},\\
+%
+%
+\tilde{\mbm{E}}_u\mbm{H}_u^{-1}\tilde{\mbm{E}}_u^T 
+&=
+    \begin{bmatrix} 
+      \tilde{\mbm{B}}_0 & \mbm{0}    & \mbm{0}   \\
+      \mbm{0}    & \tilde{\mbm{B}}_1 & \mbm{0}   \\
+      \mbm{0}    & \mbm{0}    & \tilde{\mbm{B}}_2\\
+    \end{bmatrix}
+  \begin{bmatrix} 
+    \mbm{P} & \mbm{0}    & \mbm{0}   \\
+    \mbm{0}    & \mbm{P} & \mbm{0}   \\
+    \mbm{0}    & \mbm{0}    & \mbm{P}\\
+  \end{bmatrix}^{-1}
+    \begin{bmatrix} 
+      \tilde{\mbm{B}}^T_0 & \mbm{0}    & \mbm{0}    \\
+      \mbm{0}    & \tilde{\mbm{B}}^T_1 & \mbm{0}    \\
+      \mbm{0}    & \mbm{0}    & \tilde{\mbm{B}}^T_2 \\
+    \end{bmatrix}\\
+&=
+  \begin{bmatrix} 
+    \tilde{\mbm{P}}_0 & \mbm{0}    & \mbm{0}    \\
+    \mbm{0}    & \tilde{\mbm{P}}_1 & \mbm{0}    \\
+    \mbm{0}    & \mbm{0}    & \tilde{\mbm{P}}_2 \\
+  \end{bmatrix}, 
+\end{align*}
+where $\tilde{\mbm{P}}_k = \tilde{\mbm{B}}_k\mbm{P}^{-1}\tilde{\mbm{B}}^T_k$.
+
+Hence, $\mbm{S}$ has a block-diagonal structure with the following blocks
+\begin{equation*}
+\begin{split}
+  2\mbm{S}_{11} &= \tilde{\mbm{Q}}^{-1} + \tilde{\mbm{P}}_0  \\
+  2\mbm{S}_{kk} &= \mbm{A}_{k-1}\tilde{\mbm{Q}}^{-1}\mbm{A}^T_{k-1} + \tilde{\mbm{Q}}^{-1} + \tilde{\mbm{P}}_{k-1}  \\
+  2\mbm{S}_{k,k+1} &= \mbm{S}_{k+1,k}^T = -\tilde{\mbm{Q}}^{-1}\mbm{A}^T_{k}.
+\end{split}
+\end{equation*}

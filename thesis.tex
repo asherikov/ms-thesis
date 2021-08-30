@@ -1,0 +1,229 @@
+%----------------------------------------------------------------------
+% Document class
+%----------------------------------------------------------------------
+\documentclass[latexfonts,mas]{oru-thesis}
+
+%What to include (useful if you want to send certain portions for review).
+%\includeonly{
+%  title,
+%  abstract,
+%  acknowledgements,
+%  contents,
+%  ch1,
+%  ch2,
+%  0_backmatter
+%}
+%----------------------------------------------------------------------
+
+
+%----------------------------------------------------------------------
+% Packages and macros
+%----------------------------------------------------------------------
+
+%This needs to be before epsfig
+%\usepackage[dvips]{graphicx}
+%\usepackage{graphicx}
+\usepackage{psfrag}
+
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage{textcomp}
+\usepackage{url}
+\usepackage{afterpage}
+\usepackage{placeins}
+\usepackage{amssymb} %\mathbb{R}
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{pifont}
+\usepackage{rotating}
+\usepackage{latexsym}
+\usepackage{verbatim}
+\usepackage[latin1]{inputenc}
+\usepackage{multirow}
+\usepackage{afterpage}
+%\usepackage{epsfig}
+\usepackage{lscape}
+\usepackage{makeidx}
+\usepackage[printonlyused]{acronym}
+\makeindex
+
+%This needs to be before hyperref
+%\usepackage{float}
+
+% This should be after most packages
+\usepackage[%ps2pdf, %debug,
+            %pdftitle            = {{e.g. The Title}},
+            %pdfsubject          = {e.g. Ph.D. Thesis},
+            %pdfauthor           = {e.g. My Name},
+            %pdfkeywords         = {{e.g. My Keywords}},
+            %pdfpagemode         = {UseOutlines},
+            colorlinks          = false,
+            linkcolor           = {black},
+            %citecolor           = {black},
+            %urlcolor            = {black},
+            pdfstartview        = {FitH},
+            pdfdisplaydoctitle  = true,
+            bookmarks           = true,
+            bookmarksopen       = false,
+            bookmarksnumbered   = true,
+            bookmarkstype       = {toc},
+            raiselinks          = false,
+            breaklinks          = false,
+            pageanchor          = true,
+            backref             = page]{hyperref}
+
+% These need to be after hyperref
+%\usepackage{algorithm}
+%\usepackage{algorithmic}
+%\usepackage[all]{hypcap}
+\usepackage[ruled,noline,noend]{algorithm2e}
+\usepackage[noabbrev]{cleveref} % nameinlink,
+\usepackage[tight]{subfigure}
+
+% This needs to be after backref, which is included by hyperref if backref is
+% enabled.  The command is used to list locations of citations.
+\renewcommand*{\backref}[1]{}
+\renewcommand*{\backrefalt}[4]{
+\ifcase #1
+(Not cited.)
+\or
+(Cited on page #2.)
+\else
+(Cited on pages #2.)
+\fi
+}
+
+%----------------------------------------------------------------------
+
+
+%----------------------------------------------------------------------
+% Macros
+%----------------------------------------------------------------------
+
+% For adding notes.  The first argument is optional, usually the note author's
+% initials or a subject for the note.  The second argument is the note itself.
+% Each note is numbered using the notecounter counter.
+%\newcounter{notecounter}
+%\setcounter{notecounter}{1}
+%\newcommand{\note}[2][]{
+%  \vspace{1ex}\noindent$\Rightarrow$
+%  \fbox{\begin{minipage}[t]{0.85\columnwidth}{\sf\small \textbf{NOTE \arabic{notecounter} (#1):} #2}\end{minipage}}
+%  \vspace{1ex}
+%  \addtocounter{notecounter}{1}}
+
+% For inserting definitions (use \begin{definition} and \end{definition}
+%\theoremstyle{definition}
+%\newtheorem{definition}{Definition}[section]
+
+% For inserting ps figures, specifying size in various ways
+%\def\epspath{./Figures/}
+%\newcommand{\inps}[1]{\psfig{figure=\epspath#1.eps}}
+%\newcommand{\inpss}[2]{\psfig{figure=\epspath#1.eps,width=#2}}
+%\newcommand{\inpsw}[2]{\psfig{figure=\epspath#1.eps,width=#2}}
+%\newcommand{\inpsh}[2]{\psfig{figure=\epspath#1.eps,height=#2}}
+%\newcommand{\inpsss}[3]{\psfig{figure=\epspath#1.eps,width=#2,height=#3}}
+%\newcommand{\inpswh}[3]{\psfig{figure=\epspath#1.eps,width=#2,height=#3}}
+%\newcommand{\centerps}[1]{\begin{center}\ \inps{#1} \end{center}}
+%\newcommand{\centerpss}[2]{\begin{center}\ \inpss{#1}{#2} \end{center}}
+%\newcommand{\centerpsw}[2]{\begin{center}\ \inpsw{#1}{#2} \end{center}}
+%\newcommand{\centerpsh}[2]{\begin{center}\ \inpsh{#1}{#2} \end{center}}
+%\newcommand{\centerpsss}[3]{\begin{center}\ \inpsss{#1}{#2}{#3} \end{center}}
+%\newcommand{\centerpswh}[3]{\begin{center}\ \inpswh{#1}{#2}{#3} \end{center}}
+
+% Used to set a minimum height for rows in tables
+%\newcommand{\rowheight}[1]{\rule{-1pt}{#1}}
+
+
+%----------------------------------------------------------------------
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\mbm}[1]{\mbox{\boldmath $#1$}}
+
+% add \argmin command
+\newcommand{\argmin}[1]{\underset{#1}{\operatorname{arg}\,\operatorname{min}}\;}
+\newcommand{\minimize}[1]{\underset{#1}{\operatorname{minimize}}\quad}
+\newcommand{\subjectto}{{\operatorname{subject\;to}}\quad}
+\newcommand{\norm}[1]{\lVert#1\rVert}
+
+% fix font in \dddot and \ddddot
+\makeatletter
+\renewcommand{\dddot}[1]{%
+{\mathop{\kern\z@#1}\limits^{\vbox to-1.4\ex@{\kern-\tw@\ex@
+\hbox{$...$}\vss}}}}
+\renewcommand{\ddddot}[1]{%
+{\mathop{\kern\z@#1}\limits^{\vbox to-1.4\ex@{\kern-\tw@\ex@
+\hbox{$....$}\vss}}}}
+\makeatother
+
+% set font for acronyms
+\renewcommand*{\acsfont}[1]{{\bf #1}}
+\renewcommand*{\acffont}[1]{{\bf #1}}
+
+% crossreferences -- cases when capital letter should be used
+\crefname{table}{Table}{Tables}%
+\crefname{subtable}{Table}{Tables}%
+\crefname{part}{Part}{Parts}%
+\crefname{chapter}{Chapter}{Chapters}%
+\crefname{section}{Section}{Sections}%
+\crefname{subsection}{Section}{Sections}%
+\crefname{subsubsection}{Section}{Sections}%
+\crefname{appendix}{Appendix}{Appendices}%
+\crefname{subappendix}{Appendix}{Appendices}%
+\crefname{subsubappendix}{Appendix}{Appendices}%
+\crefname{subsubsubappendix}{Appendix}{Appendices}%
+\crefname{theorem}{Theorem}{Theorems}%
+\crefname{lemma}{Lemma}{Lemmas}%
+\crefname{algorithm}{Algorithm}{Algorithms}%
+\crefname{listing}{Listing}{Listings}%
+\crefname{figure}{Figure}{Figures}%
+%----------------------------------------------------------------------
+
+
+%----------------------------------------------------------------------
+% Title information
+%----------------------------------------------------------------------
+\title{Model predictive control of a walking bipedal robot using online optimization}
+\author{Alexander Sherikov}
+\date{\today}
+%\oruseries{0} TODO
+%\isbn{000-00-0000-000-0}
+%\issn{1650-8580}
+%\printer{Printer Name}
+%\editor{...}
+%\editoremail{...}
+\supervisor{Dr. Dimitar Dimitrov}
+%\supervisor{}
+\examiner{Dr. Mathias Broxvall}
+\examiner{Dr. Marcus Sundh\"all}
+%\examiner{...}
+%\examiner{...}
+%----------------------------------------------------------------------
+
+
+%---------------------------------------
+\begin{document}
+\sloppy
+%---------------------------------------
+\include{front}
+%---------------------------------------
+\mainmatter
+%---------------------------------------
+\include{ch-intro}
+\include{ch-background}
+\include{ch-mpc}
+\include{ch-qp}
+\include{ch-naomodule}
+\include{ch-results}
+\include{ch-conclusion}
+%---------------------------------------
+% Appendix
+%---------------------------------------
+\appendix
+\include{app-schur}
+%---------------------------------------
+%\backmatter
+%---------------------------------------
+\include{backmatter}
+%---------------------------------------
+\end{document}
